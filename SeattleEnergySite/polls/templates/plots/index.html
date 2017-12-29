@@ -1,0 +1,16 @@
+<h1>{{ selected }}</h1>
+<form action="{% url 'plots:index' %}" method="post">
+{% csrf_token %}
+<select name="building_use" onchange="this.form.submit()"> 
+{% for use in building_uses %}
+<option value="{{ use }}" {% if use == selected_use %} selected{% endif %}>{{ use }}</option>
+{% endfor %}
+</select>
+{{ js_plot|safe }}
+
+<select name="property" onchange="this.form.submit()">
+{% for plot in plots %}
+<option value="{{ plot }}" {% if plot == selected_plot %} selected{% endif %}>{{ plot }}</option>
+{% endfor %}
+</select>
+</form>
