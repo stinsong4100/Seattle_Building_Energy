@@ -10,7 +10,7 @@ keep = (np.isfinite(kc_d['SiteEnergyUse(kBtu)']) &
         np.isfinite(kc_d['NaturalGas(kBtu)']) &
         np.isfinite(kc_d['SteamUse(kBtu)']) &
         np.isfinite(kc_d['site_eui']) &
-        np.isfinite(kc_d['no_parking_use_sum_gfa']) )
+        np.isfinite(kc_d['no_parking_gfa']) )
 
 kc_d = kc_d[keep]
 
@@ -30,7 +30,7 @@ for bdg in kc_d.iterrows():
         Heating_System = int(bdg[1]['HeatingSystem']),
         Elevators = elev,
         Tax_PIN = int(bdg[1]['TaxParcelIdentificationNumber']),
-        No_parking_gfa = float(bdg[1]['no_parking_use_sum_gfa']),
+        No_parking_gfa = float(bdg[1]['no_parking_gfa']),
         Property_Name = bdg[1]['PropertyName'],
         Site_Energy_kbtu = float(bdg[1]['SiteEnergyUse(kBtu)']),
         Electricity_kwh = float(bdg[1]['Electricity(kWh)']),
