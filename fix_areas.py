@@ -2,27 +2,6 @@
 # Building data obtained from King County Assessors Office
 # http://info.kingcounty.gov/assessor/DataDownload/default.aspx
 # All buildings included in Commercial Building file
-# Used sqlite3 to join city and county tables
-# sqlite> .mode csv
-# sqlite> .import EXTR_CommBldg.csv kc
-# sqlite> .import EXTR_CommBldgSection.csv kcsec
-# sqlite> .import '/Users/stinson/Dropbox/SBC/Seattle Building Energy/Seattle_Building_Energy/Seattle_2015_building.csv' c
-# sqlite> .headers on
-# sqlite> .output kccommsection.csv
-# sqlite> select * from kcsec join c on 
-# kcsec.Major||kcsec.Minor = substr('0000'||c.TaxParcelIdentificationNumber,-10,10);
-# sqlite> .quit
-#
-# Note: substr adds 0 padding to match maximum possible buildings
-#
-# and likewise for kc
-#
-# sqlite> .output kccomm.csv
-# sqlite> select kc.*,c.TaxParcelIdentificationNumber from kc join c on 
-#  kc.Major||kc.Minor = substr('0000'||c.TaxParcelIdentificationNumber,-10,10);
-# sqlite> .quit
-#
-# This leaves some duplicates, you can kc_d.drop_duplicates() and resave csv
 #
 
 import pandas as pd, pdb, numpy as np, os, pylab as plt
@@ -34,9 +13,14 @@ kcsec_full = pd.read_csv('~/Downloads/Commercial Building/EXTR_CommBldgSection.c
 #city_d = pd.read_csv('Seattle_2015_building.csv')
 city_d = pd.read_csv('2015_Building_Energy_Benchmarking.csv')
 city_d['c_use_sum_gfa'] = city_d['LargestPropertyUseTypeGFA'] + city_d['SecondLargestPropertyUseTypeGFA'] + city_d['ThirdLargestPropertyUseTypeGFA']
-lookup_d = pd.read_csv('lookup.csv')
 
-kc_full['TaxParcelIdentificationNumber'] = pd.to_numeric(\
+kc_condos = pd.read_csv('~/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
+kc_condos['TaxPIN'] = pd.to_numeric(\
+    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
+kc_condos['BldgGrossSqFt'] = kc_condos['NbrUnits']*kc_condos['AvgUnitSize']
+kc_condos['no_parking_gfa'] = kc_condos['BldgGrossSqFt']
+
+kc_full['TaxPIN'] = pd.to_numeric(\
     kc_full['Major'].apply('{0:0>6}'.format)+ \
     kc_full['Minor'].apply('{0:0>4}'.format))
 
@@ -52,18 +36,55 @@ np_kc_gfa = kcsec_full[(kcsec_full['SectionUse']!=345) &
                     (kcsec_full['SectionUse']!=70) &
                     (kcsec_full['SectionUse']!=850) &
                     (kcsec_full['SectionUse']!=851)].groupby(['Major','Minor','BldgNbr'])['GrossSqFt'].sum()
-np_kc_gfa.name = 'no_parking_use_sum_gfa'
+np_kc_gfa.name = 'no_parking_gfa'
 kc_full = pd.concat([kc_full,np_kc_gfa],axis=1)
 
-kc_d = pd.merge(kc_full.reset_index(),city_d[[
+kc_full = kc_full.reset_index()
+# Deal with Condos
+test_a = pd.merge(kc_full[['TaxPIN','no_parking_gfa']],
+                  kc_condos[['TaxPIN','BldgGrossSqFt']],
+                  on='TaxPIN').set_index('TaxPIN').sum(axis=1)
+test_a.name = 'BldgGrossSqFt'
+test_a = test_a.to_frame()
+test_a['no_parking_gfa'] = test_a['BldgGrossSqFt']
+test_a['PredominantUse'] = 845
+kc_full = pd.merge(kc_full,test_a,how='outer',
+                   left_on='TaxPIN',right_index=True)
+kc_full=kc_full[kc_full.columns[~kc_full.columns.str.contains('_y')]]
+kc_full=kc_full.rename(index=str, columns={"BldgGrossSqFt_x":'BldgGrossSqFt',
+                                        'no_parking_gfa_x':'no_parking_gfa',
+                                        'PredominantUse_x':'PredominantUse'})
+
+
+# condos in city_d, but not in kc_full
+temp_a = np.setdiff1d(city_d['TaxParcelIdentificationNumber'],kc_full['TaxPIN'])
+missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
+# find them in kc_condos and append to bottom of kc_full
+only_condo_pins = np.in1d(kc_condos['TaxPIN'],missing_pins)
+kc_full = kc_full.append(kc_condos[only_condo_pins][['Major','NbrBldgs',
+                             'TaxPIN','NbrStories','ConstrClass','BldgQuality',
+                             'YrBuilt','EffYr','Elevators','no_parking_gfa',
+                             'Address','BuildingNumber','BldgGrossSqFt',
+                             'Fraction','DirectionPrefix',
+                             'StreetName','StreetType',
+                             'DirectionSuffix','ZipCode']])
+num_condos=len(np.where(only_condo_pins)[0])
+kc_full.loc[-num_condos:,'PredominantUse']=845
+kc_full.loc[-num_condos:,'Minor']=0
+kc_full.loc[-num_condos:,'BldgNbr']=1
+kc_full.loc[-num_condos:,'HeatingSystem']=0
+
+
+kc_d = pd.merge(kc_full,city_d[[
             'PropertyName','TaxParcelIdentificationNumber',
             'PropertyGFATotal','c_use_sum_gfa','SiteEnergyUse(kBtu)',
             'SiteEnergyUseWN(kBtu)', 'SteamUse(kBtu)','Electricity(kWh)', 
             'Electricity(kBtu)','NaturalGas(therms)', 'NaturalGas(kBtu)',
             'OtherFuelUse(kBtu)','BuildingType']],
-                left_on=['TaxParcelIdentificationNumber'],#'BldgGrossSqFt'],
-                right_on=['TaxParcelIdentificationNumber'],#'PropertyGFATotal'],
+                left_on=['TaxPIN'],
+                right_on=['TaxParcelIdentificationNumber'],
                 how='inner')
+
 
 kc_d['keep']=True
 icopy = kc_d.duplicated('TaxParcelIdentificationNumber',keep=False)
@@ -82,24 +103,15 @@ for pin in repeat_pins:
 
 kc_d=kc_d[kc_d['keep']]
 
-iLowArea = kc_d['no_parking_use_sum_gfa']<kc_d['PropertyGFATotal']/10
-kc_d.loc[iLowArea,'no_parking_use_sum_gfa']=kc_d.loc[iLowArea,'PropertyGFATotal']
+iLowArea = kc_d['no_parking_gfa']<kc_d['PropertyGFATotal']/10
+kc_d.loc[iLowArea,'no_parking_gfa']=kc_d.loc[iLowArea,'PropertyGFATotal']
 
 
 # What is missing?
 temp_a = np.setxor1d(kc_d['TaxParcelIdentificationNumber'],city_d['TaxParcelIdentificationNumber'])
 missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
 
-kc_condos = pd.read_csv('/Users/stinson/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
-kc_condos['TaxParcelIdentificationNumber'] = pd.to_numeric(\
-    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
-
-condo_bools = np.in1d(missing_pins,kc_condos['TaxParcelIdentificationNumber'])
-# !!! XXX  Condos NEED to be taken care of later XXX
-condo_pins = missing_pins[condo_bools]
-print('# of city Condo PINS in KC data: ',len(np.unique(condo_pins)))
 # Weird stuff in here, typically no building data, revert it to city values
-missing_pins = missing_pins[~condo_bools]
 print('# of city PINS missing from KC data: ',len(np.unique(missing_pins)))
 
 # Search for missing items
@@ -122,29 +134,15 @@ if False:
         except:
             print(iMissing,address,old_pin)
 
-# Double check City's SiteEnergy column
-ce = (city_d[['SteamUse(kBtu)','Electricity(kBtu)','NaturalGas(kBtu)',
-          'OtherFuelUse(kBtu)']].sum(axis=1)-city_d['SiteEnergyUse(kBtu)'])
-ce = ce[np.isfinite(ce)]
-print('Max Energy difference between total and sum: ',np.max(ce),' kBtu')
-
-# Plots
-plt.close('all')
-plt.clf()
-
-f1,ax1 = plt.subplots()
-f1.subplots_adjust()
-ax1.hist(ce,bins=100,range=[0,2e3],log=True)
-f1.savefig('d_energy_city.png')
 
 
-kc_d['site_eui'] = kc_d['SiteEnergyUse(kBtu)'] / kc_d['no_parking_use_sum_gfa']
+kc_d['site_eui'] = kc_d['SiteEnergyUse(kBtu)'] / kc_d['no_parking_gfa']
 
-combine = {'Office':[304,344,381,810,820,840,845,847],
+combine = {'Office':[304,344,381,810,820,840,847],
            'K-12 School':[358,365,366,484],
            'College':[368,377],
-           'Retail':[303,318,319,353,410,412,413,414,455,534,830,846,848,860],
-           'Apartments':[300,321,338,352,348,459,551],
+           'Retail':[303,318,319,353,410,412,413,414,455,534,830,848,860],
+           'Apartments':[300,321,338,352,348,459,551,845,846],
            'Assisted Living':[330,424,451,589,710],
            'Government':[327,491],
            'Grocery Stores':[340,446,458],
@@ -170,14 +168,28 @@ for name,use_list in combine.items():
 kc_d.to_csv('Revised_2015_Seattle.csv')
 
 # Make some plots    
+plt.close('all')
+plt.clf()
+
+# Double check City's SiteEnergy column
+ce = (city_d[['SteamUse(kBtu)','Electricity(kBtu)','NaturalGas(kBtu)',
+          'OtherFuelUse(kBtu)']].sum(axis=1)-city_d['SiteEnergyUse(kBtu)'])
+ce = ce[np.isfinite(ce)]
+print('Max Energy difference between total and sum: ',np.max(ce),' kBtu')
+
+f1,ax1 = plt.subplots()
+f1.subplots_adjust()
+ax1.hist(ce,bins=100,range=[0,2e3],log=True)
+f1.savefig('d_energy_city.png')
+
+# Buildings sorted by KC GFA values and then lines of the other sq. ft measures
 f,ax = plt.subplots()
 f.subplots_adjust()
 
-# Buildings sorted by KC GFA values and then lines of the other sq. ft measures
 kc_area_sort = kc_d.sort_values('BldgGrossSqFt')
 ax.plot(kc_area_sort['c_use_sum_gfa'].values,label='City Sum of Use GFA')
 ax.plot(kc_area_sort['PropertyGFATotal'].values,label='City Reported Total')
-ax.semilogy(kc_area_sort['no_parking_use_sum_gfa'].values,label='KC No Parking Areas')
+ax.semilogy(kc_area_sort['no_parking_gfa'].values,label='KC No Parking Areas')
 ax.semilogy(kc_area_sort['use_sum_gfa'].values,label='KC Sum of Use Areas')
 ax.plot(kc_area_sort['BldgGrossSqFt'].values,label='KC Reported Total')
 ax.set_xlabel('Building')
@@ -198,7 +210,7 @@ for ix in np.arange(2):
 ax2[0,0].loglog(kc_d['BldgGrossSqFt'].values,kc_d['use_sum_gfa'].values,'.',
                 label='Sum of Use Areas')
 ax2[1,0].plot(kc_d['BldgGrossSqFt'].values,
-              kc_d['no_parking_use_sum_gfa'].values,
+              kc_d['no_parking_gfa'].values,
               '.',label='Parking subtracted')
 ax2[1,1].plot(kc_d['BldgGrossSqFt'].values,
               kc_d['PropertyGFATotal'].values,'.',
