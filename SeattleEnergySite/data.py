@@ -45,7 +45,7 @@ for bdg in kc_d.iterrows():
 Building.objects.bulk_create(buildings)
 
 ashrae_eui = {'Office':40,'K-12 School':40,'College':65,'Retail':52,
-           'Apartments':30,'Assisted Living':84,'Government':50,
+           'Multifamily Housing':30,'Assisted Living':84,'Government':50,
            'Grocery Stores':131,'Hotel':52,'Limited Hotel':52,
            'Theater':23,'Public Assembly':28,'Restaurant':156,
            'Fitness Center':26,'Refrig. Warehouse':69,'Non-Ref Warehouse':20,
