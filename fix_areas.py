@@ -14,12 +14,6 @@ kcsec_full = pd.read_csv('~/Downloads/Commercial Building/EXTR_CommBldgSection.c
 city_d = pd.read_csv('2015_Building_Energy_Benchmarking.csv')
 city_d['c_use_sum_gfa'] = city_d['LargestPropertyUseTypeGFA'] + city_d['SecondLargestPropertyUseTypeGFA'] + city_d['ThirdLargestPropertyUseTypeGFA']
 
-kc_condos = pd.read_csv('~/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
-kc_condos['TaxPIN'] = pd.to_numeric(\
-    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
-kc_condos['BldgGrossSqFt'] = kc_condos['NbrUnits']*kc_condos['AvgUnitSize']
-kc_condos['no_parking_gfa'] = kc_condos['BldgGrossSqFt']
-
 kc_full['TaxPIN'] = pd.to_numeric(\
     kc_full['Major'].apply('{0:0>6}'.format)+ \
     kc_full['Minor'].apply('{0:0>4}'.format))
@@ -41,6 +35,12 @@ kc_full = pd.concat([kc_full,np_kc_gfa],axis=1)
 
 kc_full = kc_full.reset_index()
 # Deal with Condos
+kc_condos = pd.read_csv('~/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
+kc_condos['TaxPIN'] = pd.to_numeric(\
+    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
+kc_condos['BldgGrossSqFt'] = kc_condos['NbrUnits']*kc_condos['AvgUnitSize']
+kc_condos['no_parking_gfa'] = kc_condos['BldgGrossSqFt']
+
 test_a = pd.merge(kc_full[['TaxPIN','no_parking_gfa']],
                   kc_condos[['TaxPIN','BldgGrossSqFt']],
                   on='TaxPIN').set_index('TaxPIN').sum(axis=1)
@@ -80,7 +80,7 @@ kc_d = pd.merge(kc_full,city_d[[
             'PropertyGFATotal','c_use_sum_gfa','SiteEnergyUse(kBtu)',
             'SiteEnergyUseWN(kBtu)', 'SteamUse(kBtu)','Electricity(kWh)', 
             'Electricity(kBtu)','NaturalGas(therms)', 'NaturalGas(kBtu)',
-            'OtherFuelUse(kBtu)','BuildingType']],
+            'OtherFuelUse(kBtu)','LargestPropertyUseType']],
                 left_on=['TaxPIN'],
                 right_on=['TaxParcelIdentificationNumber'],
                 how='inner')
@@ -138,14 +138,14 @@ if False:
 
 kc_d['site_eui'] = kc_d['SiteEnergyUse(kBtu)'] / kc_d['no_parking_gfa']
 
-combine = {'Office':[304,344,381,810,820,840,847],
+combine = {'Office':[304,344,381,810,820,840],
            'K-12 School':[358,365,366,484],
            'College':[368,377],
-           'Retail':[303,318,319,353,410,412,413,414,455,534,830,848,860],
-           'Apartments':[300,321,338,352,348,459,551,845,846],
+           'Retail':[303,318,319,353,410,412,413,414,455,458,534,830,848,860],
+           'Multifamily Housing':[300,321,338,352,348,459,551,845,846,847],
            'Assisted Living':[330,424,451,589,710],
            'Government':[327,491],
-           'Grocery Stores':[340,446,458],
+           'Grocery Stores':[340,446],
            'Hotel':[594,841],
            'Limited Hotel':[332,343,595,842,853],
            'Theater':[302,379,380],
@@ -154,7 +154,7 @@ combine = {'Office':[304,344,381,810,820,840,847],
            'Restaurant':[314,350],
            'Fitness Center':[416,418,483,485],
            'Refrig. Warehouse':[447],
-           'Non-Ref Warehouse':[326,386,387,406,407,525,534,703],
+           'NR Warehouse':[326,386,387,406,407,525,534,703],
            'Industrial':[392,453,470,471,487,494,495,527,528],
            'Jail':[335,489],'Alternative School':[156],
            'Convalescent Hospital':[313],'Fire Station':[322],
@@ -165,7 +165,57 @@ for name,use_list in combine.items():
     kc_d.loc[np.in1d(kc_d['PredominantUse'],use_list),'main_use']=name
     kcsec_full.loc[np.in1d(kcsec_full['SectionUse'],use_list),'main_use']=name
 
+city_dict = {'Non-Refrigerated Warehouse':'NR Warehouse',
+       'College/University':'College', 'Distribution Center':'NR Warehouse',
+       'Manufacturing/Industrial Plant':'Industrial',
+       'Worship Facility':'Public Assembly','Retail Store':'Retail', 
+       'Other - Education':'K-12 School',
+       'Social/Meeting Hall':'Public Assembly', 
+       'Self-Storage Facility':'NR Warehouse',
+       'Financial Office':'Office', 'Police Station':'Government', 
+       'Other - Entertainment/Public Assembly':'Public Assembly',
+       'Automobile Dealership':'Retail', 'Laboratory':'Laboritories', 
+       'Supermarket/Grocery Store':'Grocery Stores', 
+       'Residence Hall/Dormitory':'Multifamily Housing', 
+       'Library':'Public Assembly',
+       'Fitness Center/Health Club/Gym':'Fitness Center', 
+       'Performing Arts':'Theater', 'Courthouse':'Government',
+       'Other - Recreation':'Fitness Center', 
+       'Hospital (General Medical & Surgical)':'Hospital',
+       'Senior Care Community':'Assisted Living', 'Other - Mall':'Retail', 
+       'Refrigerated Warehouse':'Refrig. Warehouse',
+       'Other - Services':'Retail', 'Strip Mall':'Retail', 
+       'Residential Care Facility':'Assisted Living',
+       'Wholesale Club/Supercenter':'Retail', 
+       'Other - Public Services':'Government',
+       'Bank Branch':'Office', 'Other - Restaurant/Bar':'Restaurant', 
+       'Food Service':'Restaurant','Convention Center':'Public Assembly', 
+       'Urgent Care/Clinic/Other Outpatient':'Hospital',
+       'Other/Specialty Hospital':'Hospital',
+       'Repair Services (Vehicle, Shoe, Locksmith, etc)':'Retail',
+       'Adult Education':'K-12 School', 'Pre-school/Daycare':'K-12 School', 
+       'Movie Theater':'Theater',
+       'Lifestyle Center':'Fitness Center', 
+       'Other - Lodging/Residential':'Multifamily Housing',
+       'Outpatient Rehabilitation/Physical Therapy':'Medical Office', 
+       'Other - Utility':'Industrial',
+       'Personal Services (Health/Beauty, Dry Cleaning, etc)':'Retail'}
+
+kc_d = kc_d.replace({'LargestPropertyUseType':city_dict})
+iUseNan = pd.isna(kc_d['LargestPropertyUseType']) 
+kc_d.loc[iUseNan,'LargestPropertyUseType']=kc_d.loc[iUseNan,'main_use']
+iUseOther = kc_d['LargestPropertyUseType']=='Other'
+kc_d.loc[iUseOther,'LargestPropertyUseType']=kc_d.loc[iUseOther,'main_use']
+iUseData = kc_d['LargestPropertyUseType']=='Data Center'
+kc_d.loc[iUseData,'main_use']='Data Center'
+
+print('Total buildings: ',len(kc_d))
+iUseMatch=kc_d['LargestPropertyUseType']==kc_d['main_use']
+num_use_match = len(np.where(iUseMatch)[0])
+print('Matching primary uses: ',num_use_match)
+
 kc_d.to_csv('Revised_2015_Seattle.csv')
+
 
 # Make some plots    
 plt.close('all')
