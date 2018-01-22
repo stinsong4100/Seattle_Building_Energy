@@ -2,7 +2,7 @@ import bpd_api_python_lib as bpd, numpy as np, pickle, pylab as plt, os
 import pandas as pd, pdb
 from textwrap import wrap
 
-sea_d = pd.read_csv('Seattle_2015_building.csv')
+sea_d = pd.read_csv('Revised_2015_Seattle.csv')
 
 with open('bpd_tables.pck','rb') as f: d=pickle.load(f)
 
@@ -13,12 +13,12 @@ plotlist = {'Office - Uncategorized':'Office',
             'Health Care - Inpatient':'Hospital',
             'Lodging - Hotel':'Hotel',
             'Office - Medical non diagnostic':'Medical Office',
-            'Retail - Uncategorized':'Retail Store',
+            'Retail - Uncategorized':'Retail',
             'Education - Other classroom':'K-12 School',
-            'Nursing Home':'Nursing Home',
-            'Education - College or university':'College/University',
-            'Grocery store or food market':'Grocery Store',
-            'Public Assembly - Recreation':'Performing Arts'}
+            'Nursing Home':'Assisted Living',
+            'Education - College or university':'College',
+            'Grocery store or food market':'Grocery Stores',
+            'Public Assembly - Recreation':'Public Assembly'}
 
 sea_dict = {'Office - Uncategorized':'Office',
             'Multifamily - Uncategorized':'Multifamily Housing',
@@ -65,8 +65,9 @@ for ift,ft in enumerate(plotlist):
         #pdb.set_trace()
         ax[ix,iy].errorbar(d['sea'][ft]['years'],d['sea'][ft]['50s'],yerr=yerr,color='C0')
 
-    sea_quant = sea_d[sea_d['LargestPropertyUseType']==sea_dict[ft]]['SiteEUI(kBtu/sf)'].quantile([.25,.5,.75])
-    ax[ix,iy].plot(2015.2,sea_quant[0.5],c='m')
+    sea_quant = sea_d[sea_d['main_use']==plotlist[ft]]['site_eui'].quantile([.25,.5,.75])
+    print(sea_dict[ft],sea_quant)
+    ax[ix,iy].plot(2015.2,sea_quant[0.5],'om')
     sea_yerr = [np.array([sea_quant[0.75]-sea_quant[0.5]]),np.array([sea_quant[0.5]-sea_quant[0.25]])]
     ax[ix,iy].errorbar(2015.2,sea_quant[0.5],yerr=sea_yerr,color='m')
     
