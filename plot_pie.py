@@ -1,5 +1,4 @@
 import pandas as pd, numpy as np, pylab as plt, pdb, squarify, brewer2mpl, os
-from textwrap import wrap
 
 d = pd.read_csv('Seattle_2015_building.csv')
 
