@@ -3,19 +3,45 @@ import pandas as pd, pylab as plt, numpy as np, pdb, os, mpld3
 kc_d = pd.read_csv('Revised_2015_Seattle.csv')
 kcsec_full = pd.read_csv('~/Downloads/Commercial Building/EXTR_CommBldgSection.csv',encoding='latin1')
 city_d = pd.read_csv('2015_Building_Energy_Benchmarking.csv')
-lookup_d = pd.read_csv('lookup.csv')
 
+combine = {'Office':[304,344,381,810,820,840,847],
+           'K-12 School':[358,365,366,484],
+           'College':[368,377],
+           'Retail':[303,318,319,353,410,412,413,414,455,458,534,830,848,860],
+           'Multifamily Housing':[300,321,338,352,348,459,551,845,846],
+           'Assisted Living':[330,424,451,589,710],
+           'Government':[327,491],
+           'Grocery Stores':[340,446],
+           'Hotel':[594,841],
+           'Limited Hotel':[332,343,595,842,853],
+           'Theater':[302,379,380],
+           'Public Assembly':[173,306,308,311,309,323,324,337,426,482,
+                              486,514,573,574],
+           'Restaurant':[314,350],
+           'Fitness Center':[416,418,483,485],
+           'Refrig. Warehouse':[447],
+           'NR Warehouse':[326,386,387,406,407,525,534,703],
+           'Industrial':[392,453,470,471,487,494,495,527,528],
+           'Jail':[335,489],'Alternative School':[156],
+           'Convalescent Hospital':[313],'Fire Station':[322],
+           'Hospital':[331],'Medical Office':[341],'Museum':[481],
+           'Laboratories':[496],'Broadcast Facility':[498]}
+
+for name,use_list in combine.items():
+    kc_d.loc[np.in1d(kc_d['PredominantUse'],use_list),'main_use']=name
+    kcsec_full.loc[np.in1d(kcsec_full['SectionUse'],use_list),'main_use']=name
 
 use_d = kc_d.groupby('main_use')[['SiteEnergyUse(kBtu)',
-                                'no_parking_use_sum_gfa']].sum().sort_values('SiteEnergyUse(kBtu)',ascending=False)
+                                'no_parking_gfa']].sum().sort_values('SiteEnergyUse(kBtu)',ascending=False)
 use_d['count'] = kc_d.groupby('main_use')['main_use'].count()
-use_d['mean_eui'] = use_d['SiteEnergyUse(kBtu)']/use_d['no_parking_use_sum_gfa']
+use_d['mean_eui'] = use_d['SiteEnergyUse(kBtu)']/use_d['no_parking_gfa']
 use_d = use_d.join(kcsec_full.groupby('main_use')['GrossSqFt'].sum())
 use_d = use_d.rename(index=str,columns={'GrossSqFt':'tot_kc_gfa'})
 use_d['extrapolated_energy']=use_d['tot_kc_gfa']*use_d['mean_eui']
 
 use_d.to_csv('uses.csv')
 
+pdb.set_trace()
 fields=['BldgQuality','YrBuilt','EffYr','HeatingSystem','ConstrClass']
 xlabels=['Building Quality','Year Built','Year Remodeled','Heating System',
          'Construction Class']
