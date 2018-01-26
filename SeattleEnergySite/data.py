@@ -52,7 +52,7 @@ ashrae_eui = {'Office':40,'K-12 School':40,'College':65,'Retail':52,
            'Industrial':50,'Jail':66,'Alternative School':40,
            'Convalescent Hospital':135,'Fire Station':66,
            'Hospital':135,'Medical Office':34,'Museum':23,
-           'Laboratories':179,'Broadcast Facility':70}
+           'Laboratories':179,'Broadcast Facility':70,'Parking':10}
 
 targets=[]
 for use in ashrae_eui.keys():
