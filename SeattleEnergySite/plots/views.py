@@ -20,6 +20,9 @@ def index(request):
     ash_targ = ASHRAE_target.objects.filter(main_use=b_use)
     targ_eui = ash_targ.values_list('target',flat=True)[0]
     med_eui = np.median(b_euis)
+    labels=['<br>'.join([n.title(),f'GFA: {a:.0f}',f'EUI: {eui:.1f}']) 
+            for n,a,eui in b_objs.values_list('Property_Name',
+                                              'No_parking_gfa','site_eui')]
 
     f,ax=plt.subplots()
     f.subplots_adjust(left=0.15,bottom=0.12)
@@ -45,9 +48,8 @@ def index(request):
     else:
         # make scatter plot clickable and have labels
         targets = ["http://blue.kingcounty.com/Assessor/eRealProperty/Detail.aspx?ParcelNbr="+f"{t:010}" for t in b_objs.values_list('Tax_PIN',flat=True)]
-        tooltip = mpld3.plugins.PointHTMLTooltip(scatter,
-                   labels=list(b_objs.values_list('Property_Name',flat=True)),
-                   targets=targets)
+        tooltip = mpld3.plugins.PointHTMLTooltip(scatter,labels,
+                                                 targets=targets)
         mpld3.plugins.connect(f,tooltip)
         ax.plot(xlim,[targ_eui,targ_eui],'k--',
                 label='ASHRAE target: %.1f'%(targ_eui))
