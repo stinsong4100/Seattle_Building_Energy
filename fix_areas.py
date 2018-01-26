@@ -34,13 +34,16 @@ np_kc_gfa.name = 'no_parking_gfa'
 kc_full = pd.concat([kc_full,np_kc_gfa],axis=1)
 
 kc_full = kc_full.reset_index()
-# Deal with Condos
+
+### Deal with Condos
+# Read condos file
 kc_condos = pd.read_csv('~/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
+# Prepare condos with TaxPIN for merging
 kc_condos['TaxPIN'] = pd.to_numeric(\
     kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
+# Calculate floor area for all condos using average unit size
 kc_condos['BldgGrossSqFt'] = kc_condos['NbrUnits']*kc_condos['AvgUnitSize']
-kc_condos['no_parking_gfa'] = kc_condos['BldgGrossSqFt']
-
+# Sum kc_full floor area with kc_condos floor area
 test_a = pd.merge(kc_full[['TaxPIN','no_parking_gfa']],
                   kc_condos[['TaxPIN','BldgGrossSqFt']],
                   on='TaxPIN').set_index('TaxPIN').sum(axis=1)
@@ -50,10 +53,17 @@ test_a['no_parking_gfa'] = test_a['BldgGrossSqFt']
 test_a['PredominantUse'] = 845
 kc_full = pd.merge(kc_full,test_a,how='outer',
                    left_on='TaxPIN',right_index=True)
+iX_big = np.isnan(kc_full['no_parking_gfa_y']) | (kc_full['no_parking_gfa_x'] > kc_full['no_parking_gfa_y'])
+iY_big = kc_full['no_parking_gfa_x'] < kc_full['no_parking_gfa_y']
+kc_full.loc[iX_big,'no_parking_gfa'] = kc_full.loc[iX_big,'no_parking_gfa_x']
+kc_full.loc[iY_big,'no_parking_gfa'] = kc_full.loc[iY_big,'no_parking_gfa_y']
+kc_full.loc[iX_big,'BldgGrossSqFt'] = kc_full.loc[iX_big,'BldgGrossSqFt_x']
+kc_full.loc[iY_big,'BldgGrossSqFt'] = kc_full.loc[iY_big,'BldgGrossSqFt_y']
+
 kc_full=kc_full[kc_full.columns[~kc_full.columns.str.contains('_y')]]
-kc_full=kc_full.rename(index=str, columns={"BldgGrossSqFt_x":'BldgGrossSqFt',
-                                        'no_parking_gfa_x':'no_parking_gfa',
-                                        'PredominantUse_x':'PredominantUse'})
+kc_full=kc_full.rename(index=str, 
+                       columns={'PredominantUse_x':'PredominantUse'})
+kc_full=kc_full[kc_full.columns[~kc_full.columns.str.contains('_x')]]
 
 
 # condos in city_d, but not in kc_full
@@ -63,7 +73,7 @@ missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
 only_condo_pins = np.in1d(kc_condos['TaxPIN'],missing_pins)
 kc_full = kc_full.append(kc_condos[only_condo_pins][['Major','NbrBldgs',
                              'TaxPIN','NbrStories','ConstrClass','BldgQuality',
-                             'YrBuilt','EffYr','Elevators','no_parking_gfa',
+                             'YrBuilt','EffYr','Elevators',
                              'Address','BuildingNumber','BldgGrossSqFt',
                              'Fraction','DirectionPrefix',
                              'StreetName','StreetType',
@@ -149,6 +159,7 @@ combine = {'Office':[304,344,381,810,820,840],
            'Hotel':[594,841],
            'Limited Hotel':[332,343,595,842,853],
            'Theater':[302,379,380],
+           'Parking':[345],
            'Public Assembly':[173,306,308,311,309,323,324,337,426,482,
                               486,514,573,574],
            'Restaurant':[314,350],
