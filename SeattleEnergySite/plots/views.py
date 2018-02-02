@@ -20,9 +20,10 @@ def index(request):
     ash_targ = ASHRAE_target.objects.filter(main_use=b_use)
     targ_eui = ash_targ.values_list('target',flat=True)[0]
     med_eui = np.median(b_euis)
-    labels=['<br>'.join([n.title(),f'GFA: {a:.0f}',f'EUI: {eui:.1f}']) 
+    labels=["<p style='background-color:white'>"+
+            '<br>'.join([n.title(),f'GFA: {a:.0f}',f'EUI: {eui:.1f}'])+'</p>' 
             for n,a,eui in b_objs.values_list('Property_Name',
-                                              'No_parking_gfa','site_eui')]
+                                      'No_parking_gfa','site_eui')]
 
     f,ax=plt.subplots()
     f.subplots_adjust(left=0.15,bottom=0.12)
