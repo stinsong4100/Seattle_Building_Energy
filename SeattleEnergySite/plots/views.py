@@ -1,10 +1,23 @@
 from django.shortcuts import render
 import matplotlib
-matplotlib.use("Agg")
+#matplotlib.use("Agg")
 import matplotlib.pyplot as plt, mpld3, numpy as np, pdb
+import matplotlib.colors as colors
 
 from .models import Building, ASHRAE_target, Lookup
 # Create your views here.
+
+# From Joe Kington: This one gives two different linear ramps:
+class MidpointNormalize(colors.Normalize):
+    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
+        self.midpoint = midpoint
+        colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # I'm ignoring masked values and all kinds of edge cases to make a
+        # simple example...
+        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
+        return np.ma.masked_array(np.interp(value, x, y))
 
 def index(request):
     try:
@@ -28,12 +41,14 @@ def index(request):
     f,ax=plt.subplots()
     f.subplots_adjust(left=0.15,bottom=0.12)
     matplotlib.rc('font',size=18)
+    the_cm = plt.get_cmap('plasma')
     if plot_type=='site_eui':
         # make histogram
         hist_max=np.min([np.max(b_euis),5*med_eui])
         ax.hist(b_euis,bins=20,range=[0,hist_max])
     else:
-        scatter = ax.scatter(plot_type_values,b_euis)
+        scatter = ax.scatter(plot_type_values,b_euis,c=b_euis,cmap=the_cm,
+                             norm=MidpointNormalize(midpoint=med_eui))
 
     xlim=ax.get_xlim()
     ylim=ax.get_ylim()
@@ -72,7 +87,15 @@ def index(request):
 
     uses = Building.objects.values_list('main_use',flat=True).distinct()
     plot_types = [f.name for f in Building._meta.get_fields() if f.get_internal_type() is not 'CharField']
+    latlon = b_objs.values_list('lat','longitude')
+
+    mn = MidpointNormalize(vmin=np.min(b_euis),vmax=np.max(b_euis),
+                           midpoint=np.median(b_euis))
+    orig_c = the_cm(mn(b_euis))
+    colors = (orig_c[:,:3]*256).astype(int)
+    colors = map(tuple, colors)
+
     context = {'js_plot': js_plot, 'building_uses':uses,
-               'plots':plot_types,'selected_use':b_use,
-               'selected_plot':plot_type}
+               'plots':plot_types,'selected_use':b_use, 'colors':colors,
+               'selected_plot':plot_type, 'latlon':latlon}
     return render(request, 'plots/index.html', context)
