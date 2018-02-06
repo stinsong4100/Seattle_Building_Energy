@@ -17,6 +17,8 @@ class Building(models.Model):
     Tax_PIN = models.IntegerField()
     No_parking_gfa = models.FloatField()
     Property_Name = models.CharField(max_length=200)
+    lat = models.FloatField(default=47.6)
+    longitude = models.FloatField(default=-122.3)
     Site_Energy_kbtu = models.FloatField()
     Electricity_kwh = models.FloatField()
     Electricity_kbtu = models.FloatField()

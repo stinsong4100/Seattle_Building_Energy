@@ -33,6 +33,8 @@ for bdg in kc_d.iterrows():
         Tax_PIN = int(bdg[1]['TaxParcelIdentificationNumber']),
         No_parking_gfa = float(bdg[1]['no_parking_gfa']),
         Property_Name = bdg[1]['PropertyName'],
+        lat = float(bdg[1]['lat']),
+        longitude = float(bdg[1]['lon']),
         Site_Energy_kbtu = float(bdg[1]['SiteEnergyUse(kBtu)']),
         Electricity_kwh = float(bdg[1]['Electricity(kWh)']),
         Electricity_kbtu = float(bdg[1]['Electricity(kBtu)']),
