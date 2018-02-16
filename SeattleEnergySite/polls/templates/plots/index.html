@@ -17,21 +17,35 @@
   <body>
     <h1>{{ selected }}</h1>
     <form action="{% url 'plots:index' %}" method="post">
+    <table><tr>
+	<td>
       {% csrf_token %}
+      Predominant building use type:
       <select name="building_use" onchange="this.form.submit()"> 
 	{% for use in building_uses %}
 	<option value="{{ use }}" {% if use == selected_use %} selected{% endif %}>{{ use }}</option>
 	{% endfor %}
       </select>
+
       {{ js_plot|safe }}
       
+      Use
       <select name="property" onchange="this.form.submit()">
 	{% for plot in plots %}
 	<option value="{{ plot }}" {% if plot == selected_plot %} selected{% endif %}>{{ plot }}</option>
 	{% endfor %}
       </select>
-    </form>
+      for x-axis
+      <br>
+      Color plot and map points using:
+      <select name="colorby" onchange="this.form.submit()">
+	{% for color_by in plots %}
+	<option value="{{ color_by }}" {% if color_by == selected_cb %} selected{% endif %}>{{ color_by }}</option>
+	{% endfor %}
+      </select>
+    </td>
 
+    <td>
     <div id="map"></div>
     <script>
       var layer = new ol.layer.Tile({
@@ -78,5 +92,10 @@
         })
       });
     </script>
+    </div>
+    </td>
+    </tr>
+   </table>
+   </form>
   </body>
 </html>
