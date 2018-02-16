@@ -1,6 +1,6 @@
 from django.shortcuts import render
 import matplotlib
-#matplotlib.use("Agg")
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt, mpld3, numpy as np, pdb
 import matplotlib.colors as colors
 
