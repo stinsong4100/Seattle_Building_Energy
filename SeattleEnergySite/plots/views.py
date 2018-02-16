@@ -23,12 +23,15 @@ def index(request):
     try:
         b_use = request.POST['building_use']
         plot_type = request.POST['property']
+        colorby = request.POST['colorby']
     except:
         b_use = 'Office'
         plot_type = 'Year_remodeled'
+        colorby = 'site_eui'
     b_objs = Building.objects.filter(main_use=b_use)
     b_euis=np.array(b_objs.values_list('site_eui',flat=True))
     plot_type_values = b_objs.values_list(plot_type,flat=True)
+    color_vals = b_objs.values_list(colorby,flat=True)
 
     ash_targ = ASHRAE_target.objects.filter(main_use=b_use)
     targ_eui = ash_targ.values_list('target',flat=True)[0]
@@ -47,8 +50,9 @@ def index(request):
         hist_max=np.min([np.max(b_euis),5*med_eui])
         ax.hist(b_euis,bins=20,range=[0,hist_max])
     else:
-        scatter = ax.scatter(plot_type_values,b_euis,c=b_euis,cmap=the_cm,
-                             norm=MidpointNormalize(midpoint=med_eui))
+        scatter = ax.scatter(plot_type_values,b_euis,c=color_vals,cmap=the_cm,
+                             norm=MidpointNormalize(
+                midpoint=np.median(color_vals)))
 
     xlim=ax.get_xlim()
     ylim=ax.get_ylim()
@@ -89,13 +93,14 @@ def index(request):
     plot_types = [f.name for f in Building._meta.get_fields() if f.get_internal_type() is not 'CharField']
     latlon = b_objs.values_list('lat','longitude')
 
-    mn = MidpointNormalize(vmin=np.min(b_euis),vmax=np.max(b_euis),
-                           midpoint=np.median(b_euis))
-    orig_c = the_cm(mn(b_euis))
+    mn = MidpointNormalize(vmin=np.min(color_vals),vmax=np.max(color_vals),
+                           midpoint=np.median(color_vals))
+    orig_c = the_cm(mn(color_vals))
     colors = (orig_c[:,:3]*256).astype(int)
     colors = map(tuple, colors)
 
     context = {'js_plot': js_plot, 'building_uses':uses,
                'plots':plot_types,'selected_use':b_use, 'colors':colors,
-               'selected_plot':plot_type, 'latlon':latlon}
+               'selected_plot':plot_type, 'selected_cb':colorby,
+               'latlon':latlon}
     return render(request, 'plots/index.html', context)
