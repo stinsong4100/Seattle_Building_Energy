@@ -1,6 +1,6 @@
 import django, pandas as pd, pdb, numpy as np
 
-from plots.models import Building, ASHRAE_target, Lookup
+from plots.models import Building, ASHRAE_target, Lookup, Ecotope_target
 
 kc_d = pd.read_csv('../Revised_2015_Seattle.csv')
 
@@ -62,6 +62,19 @@ for use in ashrae_eui.keys():
     targets.append(target)
 
 ASHRAE_target.objects.bulk_create(targets)
+
+ecotope_eui = {'Office':46.4,'K-12 School':29.3,'College':83.4,'Retail':38.9,
+              'Multifamily Housing':20,'Government':46.4,
+              'Grocery Stores':115.3,'Hotel':61.4,'Restaurant':233.7,
+              'NR Warehouse':24.3,
+              'Hospital':123}
+
+targets=[]
+for use in ecotope_eui.keys():
+    target = Ecotope_target(main_use = use, target = ecotope_eui[use])
+    targets.append(target)
+
+Ecotope_target.objects.bulk_create(targets)
 
 Heating_System = {
 1 :'Electric',10:'Wall furnace',11:'Package Unit',12:'Warmed and Cooled Air',

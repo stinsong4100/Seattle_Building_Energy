@@ -37,6 +37,13 @@ class ASHRAE_target(models.Model):
     def __str__(self):
         return self.main_use
 
+class Ecotope_target(models.Model):
+    main_use = models.CharField(max_length=20)
+    target = models.IntegerField()
+
+    def __str__(self):
+        return self.main_use
+
 class Lookup(models.Model):
     case = models.CharField(max_length=20)
     code = models.IntegerField()

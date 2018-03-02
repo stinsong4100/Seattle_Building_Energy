@@ -4,7 +4,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt, mpld3, numpy as np, pdb
 import matplotlib.colors as colors
 
-from .models import Building, ASHRAE_target, Lookup
+from .models import Building, ASHRAE_target, Lookup, Ecotope_target
 # Create your views here.
 
 # From Joe Kington: This one gives two different linear ramps:
@@ -33,8 +33,20 @@ def index(request):
     plot_type_values = b_objs.values_list(plot_type,flat=True)
     color_vals = b_objs.values_list(colorby,flat=True)
 
-    ash_targ = ASHRAE_target.objects.filter(main_use=b_use)
-    targ_eui = ash_targ.values_list('target',flat=True)[0]
+    try:
+        ashrae=True
+        ash_targ = ASHRAE_target.objects.filter(main_use=b_use)
+        targ_eui = ash_targ.values_list('target',flat=True)[0]
+    except:
+        ashrae=False
+    
+    try:
+        ecotope=True
+        eco_targ = Ecotope_target.objects.filter(main_use=b_use)
+        eco_targ_eui = eco_targ.values_list('target',flat=True)[0]
+    except:
+        ecotope=False
+    
     med_eui = np.median(b_euis)
     labels=["<p style='background-color:white'>"+
             '<br>'.join([n.title(),f'GFA: {a:.0f}',f'EUI: {eui:.1f}'])+'</p>' 
@@ -61,8 +73,13 @@ def index(request):
 
     if plot_type=='site_eui':
         # target and median EUI lines are vertical in this case
-        ax.plot([targ_eui,targ_eui],ylim,'k--',
-                label='ASHRAE target: %.1f'%(targ_eui))
+        if ashrae:
+            ax.plot([targ_eui,targ_eui],ylim,'k--',
+                    label='ASHRAE target: %.1f'%(targ_eui))
+        if ecotope:
+            ax.plot([eco_targ_eui,eco_targ_eui],ylim,'k--',
+                    label='Ecotope 2050 S2 target: %.1f'%(eco_targ_eui))
+
         ax.plot([med_eui,med_eui],ylim,'C1:',label='Median: %.1f'%(med_eui))
         ax.legend(loc=1)
     else:
@@ -71,8 +88,12 @@ def index(request):
         tooltip = mpld3.plugins.PointHTMLTooltip(scatter,labels,
                                                  targets=targets)
         mpld3.plugins.connect(f,tooltip)
-        ax.plot(xlim,[targ_eui,targ_eui],'k--',
-                label='ASHRAE target: %.1f'%(targ_eui))
+        if ashrae:
+            ax.plot(xlim,[targ_eui,targ_eui],'k--',
+                    label='ASHRAE target: %.1f'%(targ_eui))
+        if ecotope:
+            ax.plot(xlim,[eco_targ_eui,eco_targ_eui],'g-.',
+                    label='Ecotope 2050 S2 target: %.1f'%(eco_targ_eui))
         ax.plot(xlim,[med_eui,med_eui],'C0:',label='Median: %.1f'%(med_eui))
         ax.set_ylabel('Energy Usage Intensity (EUI) [kBTU / sq ft / year]',fontsize=18)
         ax.legend(loc=2)
