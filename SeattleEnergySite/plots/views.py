@@ -24,11 +24,13 @@ def index(request):
         b_use = request.POST['building_use']
         plot_type = request.POST['property']
         colorby = request.POST['colorby']
+        year = int(request.POST['year'])
     except:
         b_use = 'Office'
         plot_type = 'Year_remodeled'
         colorby = 'site_eui'
-    b_objs = Building.objects.filter(main_use=b_use)
+        year = 2016
+    b_objs = Building.objects.filter(main_use=b_use,year=year)
     b_euis=np.array(b_objs.values_list('site_eui',flat=True))
     plot_type_values = b_objs.values_list(plot_type,flat=True)
     color_vals = b_objs.values_list(colorby,flat=True)
@@ -80,7 +82,8 @@ def index(request):
             ax.plot([eco_targ_eui,eco_targ_eui],ylim,'k--',
                     label='Ecotope 2050 S2 target: %.1f'%(eco_targ_eui))
 
-        ax.plot([med_eui,med_eui],ylim,'C1:',label='Median: %.1f'%(med_eui))
+        ax.plot([med_eui,med_eui],ylim,'C1:',
+                label=str(year)+' Median: %.1f'%(med_eui))
         ax.legend(loc=1)
     else:
         # make scatter plot clickable and have labels
@@ -94,7 +97,8 @@ def index(request):
         if ecotope:
             ax.plot(xlim,[eco_targ_eui,eco_targ_eui],'g-.',
                     label='Ecotope 2050 S2 target: %.1f'%(eco_targ_eui))
-        ax.plot(xlim,[med_eui,med_eui],'C0:',label='Median: %.1f'%(med_eui))
+        ax.plot(xlim,[med_eui,med_eui],'C0:',
+                label=str(year)+' Median: %.1f'%(med_eui))
         ax.set_ylabel('Energy Usage Intensity (EUI) [kBTU / sq ft / year]',fontsize=18)
         ax.legend(loc=2)
 
@@ -111,6 +115,7 @@ def index(request):
     js_plot = mpld3.fig_to_html(f)
 
     uses = Building.objects.values_list('main_use',flat=True).distinct()
+    years = Building.objects.values_list('year',flat=True).distinct()
     plot_types = [f.name for f in Building._meta.get_fields() if f.get_internal_type() is not 'CharField']
     latlon = b_objs.values_list('lat','longitude')
 
@@ -120,8 +125,8 @@ def index(request):
     colors = (orig_c[:,:3]*256).astype(int)
     colors = map(tuple, colors)
 
-    context = {'js_plot': js_plot, 'building_uses':uses,
+    context = {'js_plot': js_plot, 'building_uses':uses,'sel_year':year,
                'plots':plot_types,'selected_use':b_use, 'colors':colors,
                'selected_plot':plot_type, 'selected_cb':colorby,
-               'latlon':latlon}
+               'latlon':latlon,'years':years}
     return render(request, 'plots/index.html', context)

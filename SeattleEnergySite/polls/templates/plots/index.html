@@ -20,6 +20,13 @@
     <table><tr>
 	<td>
       {% csrf_token %}
+      Year:
+      <select name="year" onchange="this.form.submit()"> 
+	{% for year in years %}
+	<option value="{{ year }}" {% if year == sel_year %} selected{% endif %}>{{ year }}</option>
+	{% endfor %}
+      </select>
+      <br>
       Predominant building use type:
       <select name="building_use" onchange="this.form.submit()"> 
 	{% for use in building_uses %}

@@ -15,8 +15,8 @@ city_d = pd.read_csv('2015_Building_Energy_Benchmarking.csv')
 city_d['c_use_sum_gfa'] = city_d['LargestPropertyUseTypeGFA'] + city_d['SecondLargestPropertyUseTypeGFA'] + city_d['ThirdLargestPropertyUseTypeGFA']
 # ugly way to extract latitude and longitude
 latlon = city_d['Location'].str.split('\n').str[-1].str.strip('()').str.split(',').values
-city_d['lat']=pd.to_numeric(list(zip(*latlon))[0])
-city_d['lon']=pd.to_numeric(list(zip(*latlon))[1])
+city_d['Latitude']=pd.to_numeric(list(zip(*latlon))[0])
+city_d['Longitude']=pd.to_numeric(list(zip(*latlon))[1])
 
 kc_full['TaxPIN'] = pd.to_numeric(\
     kc_full['Major'].apply('{0:0>6}'.format)+ \
@@ -90,7 +90,7 @@ kc_full.loc[-num_condos:,'HeatingSystem']=0
 
 
 kc_d = pd.merge(kc_full,city_d[[
-            'PropertyName','lat','lon','TaxParcelIdentificationNumber',
+            'PropertyName','Latitude','Longitude','TaxParcelIdentificationNumber',
             'PropertyGFATotal','c_use_sum_gfa','SiteEnergyUse(kBtu)',
             'SiteEnergyUseWN(kBtu)', 'SteamUse(kBtu)','Electricity(kWh)', 
             'Electricity(kBtu)','NaturalGas(therms)', 'NaturalGas(kBtu)',

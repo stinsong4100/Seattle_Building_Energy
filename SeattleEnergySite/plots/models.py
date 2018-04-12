@@ -3,6 +3,7 @@ from django.db import models
 # Create your models here.
 
 class Building(models.Model):
+    year = models.IntegerField(default=2016)
     Major = models.IntegerField()
     Minor = models.IntegerField()
     BldgNbr = models.IntegerField()
@@ -27,7 +28,7 @@ class Building(models.Model):
     site_eui = models.FloatField()
 
     def __str__(self):
-        return self.Property_Name
+        return self.Property_Name+' '+str(self.year)
 
 
 class ASHRAE_target(models.Model):
