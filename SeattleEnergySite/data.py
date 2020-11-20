@@ -2,9 +2,9 @@ import django, pandas as pd, pdb, numpy as np
 
 from plots.models import Building, ASHRAE_target, Lookup, Ecotope_target
 
-years=['2015','2016']
+years=['2019'] #'2015','2016','2017','2018',
 for year in years:
-    kc_d = pd.read_csv('../Revised_'+year+'_Seattle.csv')
+    kc_d = pd.read_csv('Revised_'+year+'_Seattle.csv')
 
     keep = (np.isfinite(kc_d['SiteEnergyUse(kBtu)']) &
             np.isfinite(kc_d['Electricity(kWh)']) &

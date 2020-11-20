@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Seattle Building Energy Data</title>
     <meta name="viewport" content="initial-scale=1.0">
     <meta charset="utf-8">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/css/ol.css" type="text/css">
+   <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/css/ol.css" type="text/css">-->
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/build/ol.js"></script>
     <style>
       .map {
-        height: 400px;
-        width: 100%;
+        height: 600px;
+        width: 600px;
       }
     </style>
-    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/build/ol.js"></script>
     
+    <title>Seattle Building Energy Data</title>
   </head>
   <body>
     <h1>{{ selected }}</h1>
@@ -52,7 +52,7 @@
       </select>
     </td>
 
-    <td>
+	<td style="width:600px">
     <div id="map" class="map"></div>
     <script type="text/javascript">
       var layer = new ol.layer.Tile({

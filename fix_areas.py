@@ -9,31 +9,22 @@ import pandas as pd, pdb, numpy as np, os, pylab as plt
 kc_full = pd.read_csv('~/Downloads/Commercial Building/EXTR_CommBldg.csv',
                       encoding='latin1')
 kcsec_full = pd.read_csv('~/Downloads/Commercial Building/EXTR_CommBldgSection.csv',encoding='latin1')
-#.set_index(['Major','Minor','BldgNbr','SectionUse'])
-#city_d = pd.read_csv('Seattle_2015_building.csv')
-city_d = pd.read_csv('2015_Building_Energy_Benchmarking.csv')
-city_d['c_use_sum_gfa'] = city_d['LargestPropertyUseTypeGFA'] + city_d['SecondLargestPropertyUseTypeGFA'] + city_d['ThirdLargestPropertyUseTypeGFA']
-# ugly way to extract latitude and longitude
-latlon = city_d['Location'].str.split('\n').str[-1].str.strip('()').str.split(',').values
-city_d['Latitude']=pd.to_numeric(list(zip(*latlon))[0])
-city_d['Longitude']=pd.to_numeric(list(zip(*latlon))[1])
-
 kc_full['TaxPIN'] = pd.to_numeric(\
-    kc_full['Major'].apply('{0:0>6}'.format)+ \
-    kc_full['Minor'].apply('{0:0>4}'.format))
+                                  kc_full['Major'].apply('{0:0>6}'.format)+ \
+                                  kc_full['Minor'].apply('{0:0>4}'.format))
 
 # sum total square feet in section table, concat to main table
 kc_gfa = kcsec_full.groupby(['Major','Minor','BldgNbr'])['GrossSqFt'].sum()
 kc_gfa.name = 'use_sum_gfa'
 kc_full = pd.concat([kc_full.set_index(['Major','Minor','BldgNbr']),kc_gfa],
-                 axis=1)
+                    axis=1)
 
 # same thing, but with no parking
 np_kc_gfa = kcsec_full[(kcsec_full['SectionUse']!=345) & 
-                    (kcsec_full['SectionUse']!=388) &
-                    (kcsec_full['SectionUse']!=70) &
-                    (kcsec_full['SectionUse']!=850) &
-                    (kcsec_full['SectionUse']!=851)].groupby(['Major','Minor','BldgNbr'])['GrossSqFt'].sum()
+                       (kcsec_full['SectionUse']!=388) &
+                       (kcsec_full['SectionUse']!=70) &
+                       (kcsec_full['SectionUse']!=850) &
+                       (kcsec_full['SectionUse']!=851)].groupby(['Major','Minor','BldgNbr'])['GrossSqFt'].sum()
 np_kc_gfa.name = 'no_parking_gfa'
 kc_full = pd.concat([kc_full,np_kc_gfa],axis=1)
 
@@ -44,7 +35,7 @@ kc_full = kc_full.reset_index()
 kc_condos = pd.read_csv('~/Downloads/Condo Complex and Units/EXTR_CondoComplex.csv')
 # Prepare condos with TaxPIN for merging
 kc_condos['TaxPIN'] = pd.to_numeric(\
-    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
+                                    kc_condos['Major'].apply('{0:0>6}'.format)+'0000')
 # Calculate floor area for all condos using average unit size
 kc_condos['BldgGrossSqFt'] = kc_condos['NbrUnits']*kc_condos['AvgUnitSize']
 # Sum kc_full floor area with kc_condos floor area
@@ -69,130 +60,142 @@ kc_full=kc_full.rename(index=str,
                        columns={'PredominantUse_x':'PredominantUse'})
 kc_full=kc_full[kc_full.columns[~kc_full.columns.str.contains('_x')]]
 
-
-# condos in city_d, but not in kc_full
-temp_a = np.setdiff1d(city_d['TaxParcelIdentificationNumber'],kc_full['TaxPIN'])
-missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
-# find them in kc_condos and append to bottom of kc_full
-only_condo_pins = np.in1d(kc_condos['TaxPIN'],missing_pins)
-kc_full = kc_full.append(kc_condos[only_condo_pins][['Major','NbrBldgs',
-                             'TaxPIN','NbrStories','ConstrClass','BldgQuality',
-                             'YrBuilt','EffYr','Elevators',
-                             'Address','BuildingNumber','BldgGrossSqFt',
-                             'Fraction','DirectionPrefix',
-                             'StreetName','StreetType',
-                             'DirectionSuffix','ZipCode']])
-num_condos=len(np.where(only_condo_pins)[0])
-kc_full.loc[-num_condos:,'PredominantUse']=845
-kc_full.loc[-num_condos:,'Minor']=0
-kc_full.loc[-num_condos:,'BldgNbr']=1
-kc_full.loc[-num_condos:,'HeatingSystem']=0
-
-
-kc_d = pd.merge(kc_full,city_d[[
-            'PropertyName','Latitude','Longitude','TaxParcelIdentificationNumber',
-            'PropertyGFATotal','c_use_sum_gfa','SiteEnergyUse(kBtu)',
-            'SiteEnergyUseWN(kBtu)', 'SteamUse(kBtu)','Electricity(kWh)', 
-            'Electricity(kBtu)','NaturalGas(therms)', 'NaturalGas(kBtu)',
-            'OtherFuelUse(kBtu)','LargestPropertyUseType']],
-                left_on=['TaxPIN'],
-                right_on=['TaxParcelIdentificationNumber'],
-                how='inner')
-
-
-kc_d['keep']=True
-icopy = kc_d.duplicated('TaxParcelIdentificationNumber',keep=False)
-kc_d.loc[icopy,'keep']=False
-repeat_pins = np.unique(kc_d[icopy]['TaxParcelIdentificationNumber'])
-for pin in repeat_pins:
-    buildings = kc_d[kc_d['TaxParcelIdentificationNumber']==pin]
-    kc_gfas = np.sort(np.unique(buildings['BldgGrossSqFt']))[::-1]
-    city_gfas = np.sort(np.unique(buildings['PropertyGFATotal']))[::-1]
-    for ic,cgfa in enumerate(city_gfas):
-        try:
-            kc_d.loc[(kc_d['PropertyGFATotal']==cgfa)&(kc_d['BldgGrossSqFt']==kc_gfas[ic]),'keep']=True
-            print('Keeping: ',pin,cgfa,kc_gfas[ic])
-        except IndexError: pass  # more city values than county values
-
-
-kc_d=kc_d[kc_d['keep']]
-
-iLowArea = kc_d['no_parking_gfa']<kc_d['PropertyGFATotal']/10
-kc_d.loc[iLowArea,'no_parking_gfa']=kc_d.loc[iLowArea,'PropertyGFATotal']
-
-
-# What is missing?
-temp_a = np.setxor1d(kc_d['TaxParcelIdentificationNumber'],city_d['TaxParcelIdentificationNumber'])
-missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
-
-# Weird stuff in here, typically no building data, revert it to city values
-print('# of city PINS missing from KC data: ',len(np.unique(missing_pins)))
-
-# Search for missing items
-# Turned off for now because it is limited number of weird cases
-if False:
-    iOldPIN = np.in1d(city_d['TaxParcelIdentificationNumber'],missing_pins)
-    locs = city_d[iOldPIN]['Location']
-    old_pins = city_d[iOldPIN]['TaxParcelIdentificationNumber'].values
+#.set_index(['Major','Minor','BldgNbr','SectionUse'])
+#city_d = pd.read_csv('Seattle_2015_building.csv')
+years=['2015','2016','2017','2018','2019']
+for year in years:
+    city_d = pd.read_csv(year+'_Building_Energy_Benchmarking.csv')
+    city_d['c_use_sum_gfa'] = city_d['LargestPropertyUseTypeGFA'] + city_d['SecondLargestPropertyUseTypeGFA'] + city_d['ThirdLargestPropertyUseTypeGFA']
+    city_d['TaxParcelIdentificationNumber'] = pd.to_numeric(city_d['TaxParcelIdentificationNumber'])    # ugly way to extract latitude and longitude
+    if year=='2015':  
+        latlon = city_d['Location'].str.split('\n').str[-1].str.strip('()').str.split(',').values
+        city_d['Latitude']=pd.to_numeric(list(zip(*latlon))[0])
+        city_d['Longitude']=pd.to_numeric(list(zip(*latlon))[1])
     
-    print("FAILED LIST:")
-    addresses = locs.str.split('\n').str[0].str.split(' ')
-#kc_full = kc_full.drop(np.where(kc_full['Address'].str.contains('NaN'))[0])
-    for iMissing,(address,old_pin) in enumerate(zip(addresses,old_pins)):
-        iMatch = kc_full['Address'].str.contains(r'\s*'.join(address))
-        try:
-            if (kc_full[iMatch]['EffYr'].values[0]<2015):
-                pin = kc_full[iMatch][['Major','Minor']].values[0]
-                taxpin = f'{pin[0]:06}'+f'{pin[1]:04}'
-                kc_d[kc_d['TaxParcelIdentificationNumber']==old_pin]['TaxParcelIdentificationNumber'] = taxpin
-        except:
-            print(iMissing,address,old_pin)
+
+        # condos in city_d, but not in kc_full
+        temp_a = np.setdiff1d(city_d['TaxParcelIdentificationNumber'],kc_full['TaxPIN'])
+        missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
+        # find them in kc_condos and append to bottom of kc_full
+        only_condo_pins = np.in1d(kc_condos['TaxPIN'],missing_pins)
+        kc_full = kc_full.append(kc_condos[only_condo_pins][['Major','NbrBldgs',
+                        'TaxPIN','NbrStories','ConstrClass','BldgQuality',
+                        'YrBuilt','EffYr','Elevators',
+                        'Address','BuildingNumber','BldgGrossSqFt',
+                        'Fraction','DirectionPrefix',
+                            'StreetName','StreetType',
+                            'DirectionSuffix','ZipCode']])
+        num_condos=len(np.where(only_condo_pins)[0])
+        kc_full.loc[-num_condos:,'PredominantUse']=845
+        kc_full.loc[-num_condos:,'Minor']=0
+        kc_full.loc[-num_condos:,'BldgNbr']=1
+        kc_full.loc[-num_condos:,'HeatingSystem']=0
+
+    city_d = city_d.rename(columns={'BuildingName':'PropertyName'})
+    kc_d = pd.merge(kc_full,city_d[[
+        'PropertyName','Latitude','Longitude','TaxParcelIdentificationNumber',
+        'PropertyGFATotal','c_use_sum_gfa','SiteEnergyUse(kBtu)',
+        'SiteEnergyUseWN(kBtu)', 'SteamUse(kBtu)','Electricity(kWh)', 
+        'Electricity(kBtu)','NaturalGas(therms)', 'NaturalGas(kBtu)',
+        'LargestPropertyUseType']],
+                    left_on=['TaxPIN'],
+                    right_on=['TaxParcelIdentificationNumber'],
+                    how='inner')
+
+
+    kc_d['keep']=True
+    icopy = kc_d.duplicated('TaxParcelIdentificationNumber',keep=False)
+    kc_d.loc[icopy,'keep']=False
+    repeat_pins = np.unique(kc_d[icopy]['TaxParcelIdentificationNumber'])
+    for pin in repeat_pins:
+        buildings = kc_d[kc_d['TaxParcelIdentificationNumber']==pin]
+        kc_gfas = np.sort(np.unique(buildings['BldgGrossSqFt']))[::-1]
+        city_gfas = np.sort(np.unique(buildings['PropertyGFATotal']))[::-1]
+        for ic,cgfa in enumerate(city_gfas):
+            try:
+                kc_d.loc[(kc_d['PropertyGFATotal']==cgfa)&(kc_d['BldgGrossSqFt']==kc_gfas[ic]),'keep']=True
+                print('Keeping: ',pin,cgfa,kc_gfas[ic])
+            except IndexError: pass  # more city values than county values
+
+
+    kc_d=kc_d[kc_d['keep']]
+
+    iLowArea = kc_d['no_parking_gfa']<kc_d['PropertyGFATotal']/10
+    kc_d.loc[iLowArea,'no_parking_gfa']=kc_d.loc[iLowArea,'PropertyGFATotal']
+    
+    
+    # What is missing?
+    temp_a = np.setxor1d(kc_d['TaxParcelIdentificationNumber'],city_d['TaxParcelIdentificationNumber'])
+    missing_pins = np.int64(temp_a[np.isfinite(temp_a)])
+
+    # Weird stuff in here, typically no building data, revert it to city values
+    print('# of city PINS missing from KC data: ',len(np.unique(missing_pins)))
+
+    # Search for missing items
+    # Turned off for now because it is limited number of weird cases
+    if False:
+        iOldPIN = np.in1d(city_d['TaxParcelIdentificationNumber'],missing_pins)
+        locs = city_d[iOldPIN]['Location']
+        old_pins = city_d[iOldPIN]['TaxParcelIdentificationNumber'].values
+        
+        print("FAILED LIST:")
+        addresses = locs.str.split('\n').str[0].str.split(' ')
+        #kc_full = kc_full.drop(np.where(kc_full['Address'].str.contains('NaN'))[0])
+        for iMissing,(address,old_pin) in enumerate(zip(addresses,old_pins)):
+            iMatch = kc_full['Address'].str.contains(r'\s*'.join(address))
+            try:
+                if (kc_full[iMatch]['EffYr'].values[0]<2015):
+                    pin = kc_full[iMatch][['Major','Minor']].values[0]
+                    taxpin = f'{pin[0]:06}'+f'{pin[1]:04}'
+                    kc_d[kc_d['TaxParcelIdentificationNumber']==old_pin]['TaxParcelIdentificationNumber'] = taxpin
+            except:
+                print(iMissing,address,old_pin)
 
 
 
-kc_d['site_eui'] = kc_d['SiteEnergyUse(kBtu)'] / kc_d['no_parking_gfa']
+    kc_d['site_eui'] = kc_d['SiteEnergyUse(kBtu)'] / kc_d['no_parking_gfa']
 
-combine = {'Office':[304,344,381,810,820,840],
-           'K-12 School':[358,365,366,484],
-           'College':[368,377],
-           'Retail':[303,318,319,353,410,412,413,414,455,458,534,830,848,860],
-           'Multifamily Housing':[300,321,338,352,348,459,551,845,846,847],
-           'Assisted Living':[330,424,451,589,710],
-           'Government':[327,491],
-           'Grocery Stores':[340,446],
-           'Hotel':[594,841],
-           'Limited Hotel':[332,343,595,842,853],
-           'Theater':[302,379,380],
-           'Parking':[345],
-           'Public Assembly':[173,306,308,311,309,323,324,337,426,482,
-                              486,514,573,574],
-           'Restaurant':[314,350],
-           'Fitness Center':[416,418,483,485],
-           'Refrig. Warehouse':[447],
-           'NR Warehouse':[326,386,387,406,407,525,534,703],
-           'Industrial':[392,453,470,471,487,494,495,527,528],
-           'Jail':[335,489],'Alternative School':[156],
-           'Convalescent Hospital':[313],'Fire Station':[322],
-           'Hospital':[331],'Medical Office':[341],'Museum':[481],
-           'Laboratories':[496],'Broadcast Facility':[498]}
+    combine = {'Office':[304,344,381,810,820,840],
+               'K-12 School':[358,365,366,484],
+               'College':[368,377],
+               'Retail':[303,318,319,353,410,412,413,414,455,458,534,830,848,860],
+               'Multifamily Housing':[300,321,338,352,348,459,551,845,846,847],
+               'Assisted Living':[330,424,451,589,710],
+               'Government':[327,491],
+               'Grocery Stores':[340,446],
+               'Hotel':[594,841],
+               'Limited Hotel':[332,343,595,842,853],
+               'Theater':[302,379,380],
+               'Parking':[345],
+               'Public Assembly':[173,306,308,311,309,323,324,337,426,482,
+                                  486,514,573,574],
+               'Restaurant':[314,350],
+               'Fitness Center':[416,418,483,485],
+               'Refrig. Warehouse':[447],
+               'NR Warehouse':[326,386,387,406,407,525,534,703],
+               'Industrial':[392,453,470,471,487,494,495,527,528],
+               'Jail':[335,489],'Alternative School':[156],
+               'Convalescent Hospital':[313],'Fire Station':[322],
+               'Hospital':[331],'Medical Office':[341],'Museum':[481],
+               'Laboratories':[496],'Broadcast Facility':[498]}
 
-for name,use_list in combine.items():
-    kc_d.loc[np.in1d(kc_d['PredominantUse'],use_list),'main_use']=name
-    kcsec_full.loc[np.in1d(kcsec_full['SectionUse'],use_list),'main_use']=name
+    for name,use_list in combine.items():
+        kc_d.loc[np.in1d(kc_d['PredominantUse'],use_list),'main_use']=name
+        kcsec_full.loc[np.in1d(kcsec_full['SectionUse'],use_list),'main_use']=name
 
-city_dict = {'Non-Refrigerated Warehouse':'NR Warehouse',
-       'College/University':'College', 'Distribution Center':'NR Warehouse',
-       'Manufacturing/Industrial Plant':'Industrial',
-       'Worship Facility':'Public Assembly','Retail Store':'Retail', 
-       'Other - Education':'K-12 School',
-       'Social/Meeting Hall':'Public Assembly', 
-       'Self-Storage Facility':'NR Warehouse',
-       'Financial Office':'Office', 'Police Station':'Government', 
-       'Other - Entertainment/Public Assembly':'Public Assembly',
-       'Automobile Dealership':'Retail', 'Laboratory':'Laboritories', 
-       'Supermarket/Grocery Store':'Grocery Stores', 
-       'Residence Hall/Dormitory':'Multifamily Housing', 
-       'Library':'Public Assembly',
+    city_dict = {'Non-Refrigerated Warehouse':'NR Warehouse',
+                 'College/University':'College', 'Distribution Center':'NR Warehouse',
+                 'Manufacturing/Industrial Plant':'Industrial',
+                 'Worship Facility':'Public Assembly','Retail Store':'Retail', 
+                 'Other - Education':'K-12 School',
+                 'Social/Meeting Hall':'Public Assembly', 
+                 'Self-Storage Facility':'NR Warehouse',
+                 'Financial Office':'Office', 'Police Station':'Government', 
+                 'Other - Entertainment/Public Assembly':'Public Assembly',
+                 'Automobile Dealership':'Retail', 'Laboratory':'Laboritories', 
+                 'Supermarket/Grocery Store':'Grocery Stores', 
+                 'Residence Hall/Dormitory':'Multifamily Housing', 
+                 'Library':'Public Assembly',
        'Fitness Center/Health Club/Gym':'Fitness Center', 
        'Performing Arts':'Theater', 'Courthouse':'Government',
        'Other - Recreation':'Fitness Center', 
@@ -216,20 +219,20 @@ city_dict = {'Non-Refrigerated Warehouse':'NR Warehouse',
        'Other - Utility':'Industrial',
        'Personal Services (Health/Beauty, Dry Cleaning, etc)':'Retail'}
 
-kc_d = kc_d.replace({'LargestPropertyUseType':city_dict})
-iUseNan = pd.isna(kc_d['LargestPropertyUseType']) 
-kc_d.loc[iUseNan,'LargestPropertyUseType']=kc_d.loc[iUseNan,'main_use']
-iUseOther = kc_d['LargestPropertyUseType']=='Other'
-kc_d.loc[iUseOther,'LargestPropertyUseType']=kc_d.loc[iUseOther,'main_use']
-iUseData = kc_d['LargestPropertyUseType']=='Data Center'
-kc_d.loc[iUseData,'main_use']='Data Center'
-
-print('Total buildings: ',len(kc_d))
-iUseMatch=kc_d['LargestPropertyUseType']==kc_d['main_use']
-num_use_match = len(np.where(iUseMatch)[0])
-print('Matching primary uses: ',num_use_match)
-
-kc_d.to_csv('Revised_2015_Seattle.csv')
+    kc_d = kc_d.replace({'LargestPropertyUseType':city_dict})
+    iUseNan = pd.isna(kc_d['LargestPropertyUseType']) 
+    kc_d.loc[iUseNan,'LargestPropertyUseType']=kc_d.loc[iUseNan,'main_use']
+    iUseOther = kc_d['LargestPropertyUseType']=='Other'
+    kc_d.loc[iUseOther,'LargestPropertyUseType']=kc_d.loc[iUseOther,'main_use']
+    iUseData = kc_d['LargestPropertyUseType']=='Data Center'
+    kc_d.loc[iUseData,'main_use']='Data Center'
+    
+    print('Total buildings: ',len(kc_d))
+    iUseMatch=kc_d['LargestPropertyUseType']==kc_d['main_use']
+    num_use_match = len(np.where(iUseMatch)[0])
+    print('Matching primary uses: ',num_use_match)
+    
+    kc_d.to_csv('Revised_'+year+'_Seattle.csv')
 
 
 # Make some plots    
@@ -237,8 +240,7 @@ plt.close('all')
 plt.clf()
 
 # Double check City's SiteEnergy column
-ce = (city_d[['SteamUse(kBtu)','Electricity(kBtu)','NaturalGas(kBtu)',
-          'OtherFuelUse(kBtu)']].sum(axis=1)-city_d['SiteEnergyUse(kBtu)'])
+ce = (city_d[['SteamUse(kBtu)','Electricity(kBtu)','NaturalGas(kBtu)']].sum(axis=1)-city_d['SiteEnergyUse(kBtu)'])
 ce = ce[np.isfinite(ce)]
 print('Max Energy difference between total and sum: ',np.max(ce),' kBtu')
 
